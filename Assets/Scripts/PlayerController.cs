@@ -4,12 +4,14 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     private Rigidbody2D _rigidbody2D;
+    private Animator _animator;
 
     //int para guardar la vida maxima
     [SerializeField]private int _maxHealth = 100;
     [SerializeField]private float _movementSpeed = 4.5f;
     [SerializeField]private float _jumpHeight = 2;    
 
+    private InputAction _attackAction;
     private InputAction _jumpAction;
     private InputAction _moveAction;
     private Vector2 _moveInput;
@@ -18,12 +20,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField]private float _sensorSize = 1;
     [SerializeField]private LayerMask _groundLayer;
 
+    [SerializeField]private int _attackDamage = 7;
+    [SerializeField]private Transform _attackHitBox;
+    [SerializeField]private float _hitBoxRadius = 1f;
+
     void Awake()
     {
         _rigidbody2D = GetComponent<Rigidbody2D>();
+        _animator = GetComponent<Animator>();
 
         _moveAction = InputSystem.actions["Move"];
         _jumpAction = InputSystem.actions["Jump"];
+        _attackAction = InputSystem.actions["Attack"];
     }
 
     // Update is called once per frame
@@ -34,10 +42,16 @@ public class PlayerController : MonoBehaviour
         if(_moveInput.x < 0)
         {
             transform.rotation = Quaternion.Euler(0, 180, 0);
+            _animator.SetBool("IsRunning", true);
         }
         else if(_moveInput.x > 0)
         {
             transform.rotation = Quaternion.Euler(0, 0, 0);
+            _animator.SetBool("IsRunning", true);
+        }
+        else
+        {
+            _animator.SetBool("IsRunning", false);
         }
 
 
@@ -45,6 +59,13 @@ public class PlayerController : MonoBehaviour
         {
             Jump();
         }
+
+        if(_attackAction.WasPressedThisFrame() && IsGrounded())
+        {
+            Attack();
+        }
+
+        _animator.SetBool("IsJumping", !IsGrounded());
     }
 
     void FixedUpdate()
@@ -55,6 +76,22 @@ public class PlayerController : MonoBehaviour
     void Jump()
     {
         _rigidbody2D.AddForce(Vector2.up * Mathf.Sqrt(_jumpHeight * -2 * Physics2D.gravity.y), ForceMode2D.Impulse);
+    }
+
+    void Attack()
+    {
+        _animator.SetTrigger("IsAttacking");
+
+        Collider2D[] colliders2D = Physics2D.OverlapCircleAll(_attackHitBox.position, _hitBoxRadius);
+
+        foreach (Collider2D enemy in colliders2D)
+        {
+            if(enemy.gameObject.layer == 7)
+            {
+                Mimik enemyScript = enemy.GetComponent<Mimik>();
+                enemyScript.TakeDamage(_attackDamage);
+            }
+        }
     }
 
     bool IsGrounded()
@@ -75,5 +112,8 @@ public class PlayerController : MonoBehaviour
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(_groundSensor.position, _sensorSize);
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(_attackHitBox.position, _hitBoxRadius);
     }
 }
